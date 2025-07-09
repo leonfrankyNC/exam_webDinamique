@@ -1,0 +1,232 @@
+Gestion ticketine Avion : 
+
+Info perso : Nom , prénom , numéro Passeport , e-mail pour confirmation .
+
+Afaka miantso tel , afaka manao réservation en ligne
+Payement : par Mvola , PayPal , ...
+Genre oe : @ty daty ty vé misy vol makany @toerana iray de afaka mreserve place ( misy karazana class le place (Business , economique))
+Rehefa ts payer mandritra n'y fotoana voafetra de mivotsotra le réservation (durée réservation : )
+
+
+
+Misy côté admin 
+Login : admin 
+
+Genre creud pour les vols
+Détails pour un vol spécifique :
+     - Pilote 
+     - copilote 
+     - les hautesses en charge 
+     - liste des passagers 
+     - heur départ 
+     - heur arrivé 
+     - numéro de vol (avion)
+     - ville départ
+     - ville destination 
+     - compagnie 
+     - escale (facultatif)
+     - Nombre de place (pour business class , pour économique )
+     - date vol
+     - État vol
+
+
+Afaka tarifena n'y place ao anaty avion (business comme économique): 
+
+Genre on choisi les places genre de 1 - 5 genre les premiers à réserver (600€) genre refa vita le réservation 1 - 5 de mandeha ndray n'y tarif manaraka de tsy midina tsony iny tarif iny na misy réservation annuler ary fa manaraka an'leh logique tarif fona oe refa misy plus de 5 réservation zany de mandeha ny tarif manaraka , refa misy réservation 10 ao anaty base de mandeha tarif manaraka , misy réservation 12 plus de 12 ao anaty base de miova ndray tarif et ainsi de suite ohatranleh tarif place 
+Après 6 - 10 (700€) 
+Ensuite de 10 - 12 (800€) et ainsi de suite jusqu'à épuisement des places 
+
+Afaka amboarina ko n'y Date de résilience ana réservation mitovy2 logique amleh place avion iany
+
+
+
+
+
+Je vais vous aider à implémenter le système de connexion admin. Voici les modifications et ajouts nécessaires :
+
+1. D'abord, créons la classe `Admin.java` :
+
+```java
+package Model;
+
+public class Admin {
+    private int id;
+    private String nom;
+    private String mdp;
+
+    // Constructeurs
+    public Admin() {}
+
+    public Admin(String nom, String mdp) {
+        this.nom = nom;
+        this.mdp = mdp;
+    }
+
+    // Getters et setters
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getNom() {
+        return nom;
+    }
+
+    public void setNom(String nom) {
+        this.nom = nom;
+    }
+
+    public String getMdp() {
+        return mdp;
+    }
+
+    public void setMdp(String mdp) {
+        this.mdp = mdp;
+    }
+}
+```
+
+2. Créons maintenant `AdminDao.java` pour gérer l'accès à la base de données :
+
+```java
+package dao;
+
+import Model.Admin;
+import java.sql.*;
+
+public class AdminDao {
+    public static Admin findByCredentials(String nom, String mdp) {
+        Admin admin = null;
+        String sql = "SELECT * FROM admin WHERE nom = ? AND mdp = ?";
+        
+        try (Connection connection = Database.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            
+            statement.setString(1, nom);
+            statement.setString(2, mdp);
+            
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    admin = new Admin();
+                    admin.setId(resultSet.getInt("id"));
+                    admin.setNom(resultSet.getString("nom"));
+                    admin.setMdp(resultSet.getString("mdp"));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return admin;
+    }
+}
+```
+
+3. Modifions maintenant `AdminServlet.java` pour gérer la méthode POST :
+
+```java
+package Controller;
+
+import java.io.IOException;
+import java.util.List;
+import javax.servlet.*;
+import javax.servlet.http.*;
+
+import Model.Admin;
+import Model.Dest_populaire;
+import dao.AdminDao;
+import dao.Dest_populaireDao;
+
+public class AdminServlet extends HttpServlet {
+    protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
+        try {
+            List<Dest_populaire> destinations = Dest_populaireDao.findAll();
+            req.setAttribute("destinations", destinations);
+        } catch (Exception e) {
+            req.setAttribute("error", "Erreur lors du chargement des destinations : " + e.getMessage());
+        }
+
+        RequestDispatcher dispatcher = req.getRequestDispatcher("View/admin_index.jsp");
+        dispatcher.forward(req, res);
+    }
+
+    protected void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
+        String nom = req.getParameter("nom");
+        String mdp = req.getParameter("mdp");
+        
+        Admin admin = AdminDao.findByCredentials(nom, mdp);
+        
+        if (admin != null) {
+            // Créer une session et stocker les infos admin
+            HttpSession session = req.getSession();
+            session.setAttribute("admin", admin);
+            
+            // Rediriger vers la liste des vols
+            res.sendRedirect("liste_admin_vol");
+        } else {
+            req.setAttribute("error", "Identifiants incorrects");
+            RequestDispatcher dispatcher = req.getRequestDispatcher("View/admin_login.jsp");
+            dispatcher.forward(req, res);
+        }
+    }
+}
+```
+
+4. Pour compléter le système, vous devrez créer une page de login (admin_login.jsp) qui correspond au formulaire créé précédemment. Assurez-vous que :
+   - Le formulaire POST vers "AdminServlet" (ou l'URL mappée dans web.xml)
+   - Les noms des champs sont "nom" et "mdp"
+
+5. N'oubliez pas d'ajouter la configuration dans votre web.xml pour mapper le servlet :
+
+```xml
+<servlet>
+    <servlet-name>AdminServlet</servlet-name>
+    <servlet-class>Controller.AdminServlet</servlet-class>
+</servlet>
+<servlet-mapping>
+    <servlet-name>AdminServlet</servlet-name>
+    <url-pattern>/admin_login</url-pattern>
+</servlet-mapping>
+```
+
+6. Pour sécuriser votre application, vous devriez aussi :
+   - Hasher les mots de passe (utilisez BCrypt ou PBKDF2)
+   - Implémenter un filtre pour vérifier la session admin sur les pages protégées
+   - Ajouter un système de déconnexion
+
+Pour hasher les mots de passe, vous pourriez modifier la classe AdminDao comme suit :
+
+```java
+// Dans AdminDao.java
+import org.mindrot.jbcrypt.BCrypt;
+
+public static Admin findByCredentials(String nom, String mdp) {
+    Admin admin = null;
+    String sql = "SELECT * FROM admin WHERE nom = ?";
+    
+    try (Connection connection = Database.getConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+        
+        statement.setString(1, nom);
+        
+        try (ResultSet resultSet = statement.executeQuery()) {
+            if (resultSet.next()) {
+                String hashedPassword = resultSet.getString("mdp");
+                if (BCrypt.checkpw(mdp, hashedPassword)) {
+                    admin = new Admin();
+                    admin.setId(resultSet.getInt("id"));
+                    admin.setNom(resultSet.getString("nom"));
+                    admin.setMdp(hashedPassword);
+                }
+            }
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+    return admin;
+}
+```
+
+N'oubliez pas d'ajouter la dépendance jBCrypt à votre projet si vous utilisez cette méthode de hachage.

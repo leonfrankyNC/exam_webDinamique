@@ -1,0 +1,23 @@
+# Ignorer les fichiers compilés et temporaires
+*.class
+*.war
+*.jar
+build/
+target/
+WEB-INF/classes/
+WEB-INF/lib/
+
+# Ignorer les dépendances
+lib/mysql-connector-j-9.3.0.jar
+lib/servlet-api.jar
+
+# Ignorer les fichiers de configuration IDE
+*.idea/
+*.iml
+.settings/
+.classpath
+.project
+
+# Ignorer les fichiers de log et temporaires
+*.log
+*.tmp
